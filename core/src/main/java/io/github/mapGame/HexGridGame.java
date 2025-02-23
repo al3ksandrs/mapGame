@@ -26,6 +26,11 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
     private float hexSize = 100;
     private float zoomFactor = 1.0f; // Zoom factor
     private Vector2[] hexagonVertices;
+
+    private static final int[][] directions = {
+        {1, 0}, {1, -1}, {0, -1},
+        {-1, 0}, {-1, 1}, {0, 1}
+    };
     private Stage stage;
     private SpriteBatch batch;
     private Skin skin;
@@ -40,7 +45,15 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         batch = new SpriteBatch();
         hexGrid = generateHexGrid(4, 4);
         units = new ArrayList<>();
-        units.add(new Unit(1, 1, Color.RED, 1, "icons/infantry.png"));
+        Unit initialUnit = new Unit(1, 1, Color.RED, 1, 2, "icons/infantry.png");
+        Unit initialUnit2 = new Unit(2, 2, Color.RED, 1, 2, "icons/infantry.png");
+        units.add(initialUnit);
+        units.add(initialUnit2);
+        // Set the initial hex's color to match the unit's color
+        Hex startingHex = findHex(initialUnit.getQ(), initialUnit.getR());
+        if (startingHex != null) {
+            startingHex.setColor(initialUnit.getColor());
+        }
         stage = new Stage();
         InputMultiplexer multiplexer = new InputMultiplexer();
         multiplexer.addProcessor(stage); // Stage handles UI input
@@ -72,7 +85,11 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         // Draw hexagons
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         for (Hex hex : hexGrid) {
-            shapeRenderer.setColor(hex.getColor());
+            if (reachableHexes.contains(hex)) {
+                shapeRenderer.setColor(Color.YELLOW); // Highlight color
+            } else {
+                shapeRenderer.setColor(hex.getColor());
+            }
             fillHexagon(hex.getQ(), hex.getR());
         }
         shapeRenderer.end();
@@ -159,6 +176,68 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         return null;
     }
 
+    private List<Hex> getReachableHexes(Unit unit, int marchDistance) {
+        List<Hex> reachableHexes = new ArrayList<>();
+        List<Hex> queue = new ArrayList<>();
+        List<Hex> visited = new ArrayList<>();
+        Hex startHex = findHex(unit.getQ(), unit.getR());
+        if (startHex == null) return reachableHexes;
+
+        Color unitColor = unit.getColor();
+        queue.add(startHex);
+        visited.add(startHex);
+
+        while (!queue.isEmpty()) {
+            Hex currentHex = queue.remove(0);
+            reachableHexes.add(currentHex);
+
+            for (int[] dir : directions) {
+                int newQ = currentHex.getQ() + dir[0];
+                int newR = currentHex.getR() + dir[1];
+                Hex neighbor = findHex(newQ, newR);
+
+                if (neighbor != null && !visited.contains(neighbor)) {
+                    int distance = axialDistance(startHex.getQ(), startHex.getR(), neighbor.getQ(), neighbor.getR());
+
+                    // Check if the neighbor is within marchDistance
+                    if (distance <= marchDistance) {
+                        // If the neighbor is the same color, add it to the queue
+                        if (neighbor.getColor().equals(unitColor)) {
+                            queue.add(neighbor);
+                            visited.add(neighbor);
+                        }
+                        // If the neighbor is a different color, allow movement only if it's exactly one hex away
+                        else if (distance == 1) {
+                            reachableHexes.add(neighbor); // Add to reachable hexes but don't explore further
+                            visited.add(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+        return reachableHexes;
+    }
+
+    private Hex findHex(int q, int r) {
+        for (Hex hex : hexGrid) {
+            if (hex.getQ() == q && hex.getR() == r) {
+                return hex;
+            }
+        }
+        return null;
+    }
+
+    private boolean isWithinDistance(Hex start, Hex target, int maxDistance) {
+        int distance = axialDistance(start.getQ(), start.getR(), target.getQ(), target.getR());
+        return distance <= maxDistance;
+    }
+
+    private int axialDistance(int q1, int r1, int q2, int r2) {
+        int dq = q1 - q2;
+        int dr = r1 - r2;
+        return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
+    }
+
     @Override
     public boolean keyDown(int keycode) {
         return false;
@@ -174,6 +253,8 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         return false;
     }
 
+    private List<Hex> reachableHexes = new ArrayList<>();
+
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         dragging = true;
@@ -185,15 +266,20 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
                 for (Unit unit : units) {
                     if (!unit.hasMoved() && unit.getQ() == touchedHex.getQ() && unit.getR() == touchedHex.getR()) {
                         selectedUnit = unit;
+                        reachableHexes = getReachableHexes(selectedUnit, selectedUnit.getMarchDistance());
                         break;
                     }
                 }
             } else {
-                if (!selectedUnit.hasMoved() && isAdjacent(selectedUnit.getQ(), selectedUnit.getR(), touchedHex.getQ(), touchedHex.getR())) {
+                if (!selectedUnit.hasMoved() && reachableHexes.contains(touchedHex)) {
                     selectedUnit.moveTo(touchedHex.getQ(), touchedHex.getR());
-                    touchedHex.setColor(selectedUnit.getColor());
+                    // If the hex is not the same color as the unit, capture it
+                    if (!touchedHex.getColor().equals(selectedUnit.getColor())) {
+                        touchedHex.setColor(selectedUnit.getColor());
+                    }
                     selectedUnit.setMoved(true);
                     selectedUnit = null;
+                    reachableHexes.clear(); // Clear highlights after moving
                 }
             }
         }

@@ -2,6 +2,8 @@ package io.github.mapGame;
 
 import com.badlogic.gdx.graphics.Color;
 
+import java.util.Objects;
+
 // Hex.java
 public class Hex {
     private int q, r; // Axial coordinates
@@ -17,6 +19,19 @@ public class Hex {
         this.color = color;
         this.tax = tax;
         this.defence = defence;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Hex hex = (Hex) o;
+        return q == hex.q && r == hex.r;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(q, r);
     }
 
     // Getters and setters

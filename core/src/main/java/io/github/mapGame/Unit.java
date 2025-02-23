@@ -11,15 +11,18 @@ public class Unit {
 
     private boolean moved;
 
+    private int marchDistance;
+
     private int unitStrength;
     private Sprite unitIcon;
 
-    public Unit(int q, int r, Color color, int unitStrength, String iconPath) {
+    public Unit(int q, int r, Color color, int unitStrength, int marchDistance, String iconPath) {
         this.q = q;
         this.r = r;
         this.color = color;
         this.moved = false;
         this.unitStrength = unitStrength;
+        this.marchDistance = marchDistance;
         this.unitIcon = new Sprite(new Texture(iconPath));
         this.unitIcon.setSize(100, 100);
     }
@@ -50,5 +53,13 @@ public class Unit {
 
     public void setUnitStrength(int unitStrength) {
         this.unitStrength = unitStrength;
+    }
+
+    public int getMarchDistance() {
+        return marchDistance;
+    }
+
+    public void setMarchDistance(int marchDistance) {
+        this.marchDistance = marchDistance;
     }
 }
