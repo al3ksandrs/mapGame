@@ -4,8 +4,8 @@ import android.os.Bundle;
 
 import com.badlogic.gdx.backends.android.AndroidApplication;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
-import io.github.mapGame.Main;
 
+import io.github.mapGame.HexGridGame;
 /** Launches the Android application. */
 public class AndroidLauncher extends AndroidApplication {
     @Override
@@ -13,6 +13,6 @@ public class AndroidLauncher extends AndroidApplication {
         super.onCreate(savedInstanceState);
         AndroidApplicationConfiguration configuration = new AndroidApplicationConfiguration();
         configuration.useImmersiveMode = true; // Recommended, but not required.
-        initialize(new Main(), configuration);
+        initialize(new HexGridGame(), configuration);
     }
 }
