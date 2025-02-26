@@ -24,6 +24,7 @@ public class HexLogic {
     };
     private List<Hex> hexGrid;
     private AxialLogic axialLogic = new AxialLogic();
+
     private CameraLogic cameraLogic = new CameraLogic();
 
     List<Hex> reachableHexes = new ArrayList<>();
@@ -40,7 +41,12 @@ public class HexLogic {
 
     public Hex getHexAtPosition(Vector2 position) {
         for (Hex hex : hexGrid) {
-            Vector2 hexPos = axialLogic.axialToPixel(hex.getQ(), hex.getR(), hexSize * cameraLogic.getZoomFactor());
+            // Pass camera offset from CameraLogic
+            Vector2 hexPos = axialLogic.axialToPixel(
+                hex.getQ(), hex.getR(),
+                hexSize * cameraLogic.getZoomFactor(),
+                cameraLogic.getCameraOffset()
+            );
             if (position.dst(hexPos) < hexSize * cameraLogic.getZoomFactor()) {
                 return hex;
             }
@@ -49,7 +55,11 @@ public class HexLogic {
     }
 
     public void fillHexagon(int q, int r) {
-        Vector2 center = axialLogic.axialToPixel(q, r, hexSize * cameraLogic.getZoomFactor());
+        Vector2 center = axialLogic.axialToPixel(
+            q, r,
+            hexSize * cameraLogic.getZoomFactor(),
+            cameraLogic.getCameraOffset()
+        );
         float[] vertices = new float[12];
         for (int i = 0; i < 6; i++) {
             vertices[i * 2] = hexagonVertices[i].x + center.x;
@@ -62,7 +72,11 @@ public class HexLogic {
     }
 
     public void drawHexagon(int q, int r) {
-        Vector2 center = axialLogic.axialToPixel(q, r, hexSize * cameraLogic.getZoomFactor());
+        Vector2 center = axialLogic.axialToPixel(
+            q, r,
+            hexSize * cameraLogic.getZoomFactor(),
+            cameraLogic.getCameraOffset()
+        );
         for (int i = 0; i < 6; i++) {
             Vector2 start = hexagonVertices[i].cpy().add(center);
             Vector2 end = hexagonVertices[(i + 1) % 6].cpy().add(center);
@@ -174,7 +188,8 @@ public class HexLogic {
 
                         Vector2 center = axialLogic.axialToPixel(
                             hex.getQ(), hex.getR(),
-                            hexSize * cameraLogic.getZoomFactor()
+                            hexSize * cameraLogic.getZoomFactor(),
+                            cameraLogic.getCameraOffset()
                         );
                         // Rotate edge index 1 step left (counter-clockwise)
                         int edgeVertexIndex = (dirIndex + 5) % 6; // +5 ≡ -1 modulo 6
@@ -227,6 +242,14 @@ public class HexLogic {
 
     public void setReachableHexes(List<Hex> reachableHexes) {
         this.reachableHexes = reachableHexes;
+    }
+
+    public CameraLogic getCameraLogic() {
+        return cameraLogic;
+    }
+
+    public void setCameraLogic(CameraLogic cameraLogic) {
+        this.cameraLogic = cameraLogic;
     }
 
 }

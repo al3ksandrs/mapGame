@@ -36,7 +36,11 @@ public class UnitLogic {
 
     public void drawUnits(SpriteBatch batch, BitmapFont font, AxialLogic axialLogic, float hexSize, CameraLogic cameraLogic, GlyphLayout glyphLayout) {
         for (Unit unit : units) {
-            Vector2 pos = axialLogic.axialToPixel(unit.getQ(), unit.getR(), hexSize * cameraLogic.getZoomFactor());
+            Vector2 pos = axialLogic.axialToPixel(
+                unit.getQ(), unit.getR(),
+                hexSize * cameraLogic.getZoomFactor(),
+                cameraLogic.getCameraOffset()
+            );
             Sprite icon = unit.getUnitIcon();
             icon.setPosition(pos.x - icon.getWidth() / 2, pos.y - icon.getHeight() / 2);
             icon.draw(batch);

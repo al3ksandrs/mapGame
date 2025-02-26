@@ -25,23 +25,4 @@ public class MapLogic {
         }
         return grid;
     }
-
-//    public void outLineCalculation(){
-//        for (Hex hex : hexLogic.getReachableHexes()) {
-//            for (int[] dir : directions) {
-//                int neighborQ = hex.getQ() + dir[0];
-//                int neighborR = hex.getR() + dir[1];
-//                Hex neighbor = hexLogic.findHex(neighborQ, neighborR);
-//
-//                // If the neighbor is not in the reachable hexes, draw this edge
-//                if (neighbor == null || !reachableHexes.contains(neighbor)) {
-//                    Vector2 center = axialLogic.axialToPixel(hex.getQ(), hex.getR(), hexSize * zoomFactor);
-//                    int edgeIndex = hexLogic.getDirectionIndex(dir);
-//                    Vector2 start = hexagonVertices[edgeIndex].cpy().add(center);
-//                    Vector2 end = hexagonVertices[(edgeIndex + 1) % 6].cpy().add(center);
-//                    shapeRenderer.line(start, end);
-//                }
-//            }
-//        }
-//    }
 }

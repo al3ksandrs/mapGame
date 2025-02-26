@@ -62,6 +62,7 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
     public void create() {
         shapeRenderer = new ShapeRenderer();
         hexLogic.setShapeRenderer(shapeRenderer);
+        hexLogic.setCameraLogic(cameraLogic);
         batch = new SpriteBatch();
         font = new BitmapFont();
         glyphLayout = new GlyphLayout();
