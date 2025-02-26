@@ -5,7 +5,11 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import io.github.mapGame.Objects.Hex;
 import io.github.mapGame.Objects.Unit;
@@ -27,9 +31,9 @@ public class HexLogic {
     public void precomputeHexagonVertices() {
         hexagonVertices = new Vector2[6];
         for (int i = 0; i < 6; i++) {
-            double angle = 2 * Math.PI / 6 * i;
+            double angle = 2 * Math.PI / 6 * i; // East (0 radians), counter-clockwise
             float x = hexSize * (float) Math.cos(angle);
-            float y = hexSize * (float) Math.sin(angle);
+            float y = hexSize * (float) -Math.sin(angle); // Invert Y for LibGDX's coordinate system
             hexagonVertices[i] = new Vector2(x, y);
         }
     }
@@ -89,6 +93,7 @@ public class HexLogic {
     }
 
     public List<Hex> getReachableHexes(Unit unit, int marchDistance) {
+        List<Hex> reachableHexes = new ArrayList<>();
         List<Hex> queue = new ArrayList<>();
         List<Hex> visited = new ArrayList<>();
         Hex startHex = findHex(unit.getQ(), unit.getR());
@@ -108,13 +113,19 @@ public class HexLogic {
                 Hex neighbor = findHex(newQ, newR);
 
                 if (neighbor != null && !visited.contains(neighbor)) {
-                    int distance = axialLogic.axialDistance(startHex.getQ(), startHex.getR(), neighbor.getQ(), neighbor.getR());
+                    int distance = axialLogic.axialDistance(
+                        startHex.getQ(), startHex.getR(),
+                        neighbor.getQ(), neighbor.getR()
+                    );
 
                     if (distance <= marchDistance) {
+                        // Allow movement through friendly hexes
                         if (neighbor.getColor().equals(unitColor)) {
                             queue.add(neighbor);
                             visited.add(neighbor);
-                        } else if (distance == 1) {
+                        }
+                        // Allow capturing adjacent non-friendly hexes
+                        else if (distance == 1) {
                             reachableHexes.add(neighbor);
                             visited.add(neighbor);
                         }
@@ -135,28 +146,43 @@ public class HexLogic {
         return null;
     }
 
-    public int getDirectionIndex(int[] dir) {
-        for (int i = 0; i < directions.length; i++) {
-            if (directions[i][0] == dir[0] && directions[i][1] == dir[1]) {
-                return i;
-            }
-        }
-        return -1;
-    }
+//    public int getDirectionIndex(int[] dir) {
+//        for (int i = 0; i < directions.length; i++) {
+//            if (directions[i][0] == dir[0] && directions[i][1] == dir[1]) {
+//                return i;
+//            }
+//        }
+//        return -1;
+//    }
 
     public void outLineCalculation(List<Hex> reachableHexes) {
+        Set<String> drawnEdges = new HashSet<>();
+
         for (Hex hex : reachableHexes) {
-            for (int[] dir : directions) {
+            for (int dirIndex = 0; dirIndex < directions.length; dirIndex++) {
+                int[] dir = directions[dirIndex];
                 int neighborQ = hex.getQ() + dir[0];
                 int neighborR = hex.getR() + dir[1];
                 Hex neighbor = findHex(neighborQ, neighborR);
 
                 if (neighbor == null || !reachableHexes.contains(neighbor)) {
-                    Vector2 center = axialLogic.axialToPixel(hex.getQ(), hex.getR(), hexSize * cameraLogic.getZoomFactor());
-                    int edgeIndex = getDirectionIndex(dir);
-                    Vector2 start = hexagonVertices[edgeIndex].cpy().add(center);
-                    Vector2 end = hexagonVertices[(edgeIndex + 1) % 6].cpy().add(center);
-                    shapeRenderer.line(start, end);
+                    String edgeKey = String.format("%d,%d,%d", hex.getQ(), hex.getR(), dirIndex);
+                    String reverseKey = String.format("%d,%d,%d", neighborQ, neighborR, (dirIndex + 3) % 6);
+
+                    if (!drawnEdges.contains(edgeKey) && !drawnEdges.contains(reverseKey)) {
+                        drawnEdges.add(edgeKey);
+
+                        Vector2 center = axialLogic.axialToPixel(
+                            hex.getQ(), hex.getR(),
+                            hexSize * cameraLogic.getZoomFactor()
+                        );
+                        // Rotate edge index 1 step left (counter-clockwise)
+                        int edgeVertexIndex = (dirIndex + 5) % 6; // +5 ≡ -1 modulo 6
+                        Vector2 start = hexagonVertices[edgeVertexIndex].cpy().add(center);
+                        Vector2 end = hexagonVertices[(edgeVertexIndex + 1) % 6].cpy().add(center);
+
+                        shapeRenderer.line(start, end);
+                    }
                 }
             }
         }

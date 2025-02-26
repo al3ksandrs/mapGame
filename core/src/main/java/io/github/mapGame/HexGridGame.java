@@ -55,6 +55,9 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
 
     private Player player;
 
+    private int outlineWidth = 7;
+    private Color outlineColor = Color.CYAN;
+
     @Override
     public void create() {
         shapeRenderer = new ShapeRenderer();
@@ -113,9 +116,9 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
 
         // Draw movement outlines
         if (selectedUnit != null) {
-            Gdx.gl.glLineWidth(3);
+            Gdx.gl.glLineWidth(outlineWidth);
             shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-            shapeRenderer.setColor(Color.CYAN);
+            shapeRenderer.setColor(outlineColor);
             hexLogic.outLineCalculation(reachableHexes);
             shapeRenderer.end();
             Gdx.gl.glLineWidth(1);
@@ -250,7 +253,7 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
             unit.setMoved(false);
         }
         // Add current income to player's money
-        int currentIncome = economyLogic.calculateCurrentIncome(hexGrid);
+        int currentIncome = economyLogic.calculateCurrentIncome(hexLogic.getHexGrid());
         player.setMoney(player.getMoney() + currentIncome);
     }
 
