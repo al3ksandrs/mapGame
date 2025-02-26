@@ -1,4 +1,4 @@
-package io.github.mapGame;
+package io.github.mapGame.Objects;
 
 import com.badlogic.gdx.graphics.Color;
 

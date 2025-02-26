@@ -1,4 +1,4 @@
-package io.github.mapGame;
+package io.github.mapGame.Objects;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
@@ -36,6 +36,14 @@ public class Unit {
     public Color getColor() { return color; }
     public int getQ() { return q; }
     public int getR() { return r; }
+
+    public void setQ(int q) {
+        this.q = q;
+    }
+
+    public void setR(int r) {
+        this.r = r;
+    }
 
     public boolean hasMoved() {
         return moved;

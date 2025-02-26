@@ -6,6 +6,8 @@ import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -18,48 +20,71 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import java.util.ArrayList;
 import java.util.List;
 
-public class HexGridGame extends ApplicationAdapter implements InputProcessor {
-    private ShapeRenderer shapeRenderer;
-    private List<Hex> hexGrid;
-    private List<Unit> units;
-    private Unit selectedUnit;
-    private float hexSize = 100;
-    private float zoomFactor = 1.0f; // Zoom factor
-    private Vector2[] hexagonVertices;
+import io.github.mapGame.Objects.Hex;
+import io.github.mapGame.Objects.Player;
+import io.github.mapGame.Objects.Unit;
+import io.github.mapGame.Logic.AxialLogic;
+import io.github.mapGame.Logic.CameraLogic;
+import io.github.mapGame.Logic.EconomyLogic;
+import io.github.mapGame.Logic.HexLogic;
+import io.github.mapGame.Logic.MapLogic;
+import io.github.mapGame.Logic.UnitLogic;
 
-    private static final int[][] directions = {
-        {1, 0}, {1, -1}, {0, -1},
-        {-1, 0}, {-1, 1}, {0, 1}
-    };
+public class HexGridGame extends ApplicationAdapter implements InputProcessor {
+    EconomyLogic economyLogic = new EconomyLogic();
+    AxialLogic axialLogic = new AxialLogic();
+    CameraLogic cameraLogic = new CameraLogic();
+    HexLogic hexLogic = new HexLogic();
+    MapLogic mapLogic = new MapLogic();
+    UnitLogic unitLogic = new UnitLogic();
+    ShapeRenderer shapeRenderer = hexLogic.getShapeRenderer();
+    List<Hex> hexGrid = hexLogic.getHexGrid();
+    List<Unit> units = unitLogic.getUnits();
+    Unit selectedUnit = unitLogic.getSelectedUnit();
+    float zoomFactor = cameraLogic.getZoomFactor();
+    private BitmapFont font;
+    private GlyphLayout glyphLayout;
+
     private Stage stage;
     private SpriteBatch batch;
     private Skin skin;
 
-    private Vector2 cameraOffset = new Vector2(0, 0);
+    Vector2 cameraOffset = cameraLogic.getCameraOffset();
     private Vector2 lastTouch = new Vector2();
     private boolean dragging = false;
+
+    private Player player;
 
     @Override
     public void create() {
         shapeRenderer = new ShapeRenderer();
+        hexLogic.setShapeRenderer(shapeRenderer);
         batch = new SpriteBatch();
-        hexGrid = generateHexGrid(4, 4);
+        font = new BitmapFont();
+        glyphLayout = new GlyphLayout();
+        hexGrid = mapLogic.generateHexGrid(4, 4);
+        hexLogic.setHexGrid(hexGrid);
         units = new ArrayList<>();
+        unitLogic.setUnits(units);
+        player = new Player(0);
         Unit initialUnit = new Unit(1, 1, Color.RED, 1, 2, "icons/infantry.png");
         Unit initialUnit2 = new Unit(2, 2, Color.RED, 1, 2, "icons/infantry.png");
         units.add(initialUnit);
         units.add(initialUnit2);
+
         // Set the initial hex's color to match the unit's color
-        Hex startingHex = findHex(initialUnit.getQ(), initialUnit.getR());
-        if (startingHex != null) {
-            startingHex.setColor(initialUnit.getColor());
+        for (Unit unit : units){
+            Hex startingHex = hexLogic.findHex(unit.getQ(), unit.getR());
+            if (startingHex != null) {
+                startingHex.setColor(unit.getColor());
+            }
         }
         stage = new Stage();
         InputMultiplexer multiplexer = new InputMultiplexer();
         multiplexer.addProcessor(stage); // Stage handles UI input
         multiplexer.addProcessor(this);  // HexGridGame handles game input
         Gdx.input.setInputProcessor(multiplexer);
-        precomputeHexagonVertices();
+        hexLogic.precomputeHexagonVertices();
         createNextTurnButton();
     }
 
@@ -79,163 +104,33 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
 
     @Override
     public void render() {
+        // Clear screen
         Gdx.gl.glClearColor(0.1f, 0.1f, 0.1f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Draw hexagons
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        for (Hex hex : hexGrid) {
-            if (reachableHexes.contains(hex)) {
-                shapeRenderer.setColor(Color.YELLOW); // Highlight color
-            } else {
-                shapeRenderer.setColor(hex.getColor());
-            }
-            fillHexagon(hex.getQ(), hex.getR());
-        }
-        shapeRenderer.end();
+        // Draw hex grid
+        hexLogic.drawHexGrid(shapeRenderer, reachableHexes);
 
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.setColor(Color.BLACK);
-        for (Hex hex : hexGrid) {
-            drawHexagon(hex.getQ(), hex.getR());
+        // Draw movement outlines
+        if (selectedUnit != null) {
+            Gdx.gl.glLineWidth(3);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(Color.CYAN);
+            hexLogic.outLineCalculation(reachableHexes);
+            shapeRenderer.end();
+            Gdx.gl.glLineWidth(1);
         }
-        shapeRenderer.end();
 
-        // Draw unit icons
+        // Draw units
         batch.begin();
-        for (Unit unit : units) {
-            Vector2 pos = axialToPixel(unit.getQ(), unit.getR(), hexSize * zoomFactor);
-            Sprite icon = unit.getUnitIcon();
-            icon.setPosition(pos.x - icon.getWidth() / 2, pos.y - icon.getHeight() / 2); // Center the icon
-            icon.draw(batch);
-        }
+        unitLogic.drawUnits(batch, font, axialLogic, hexLogic.getHexSize(), cameraLogic, glyphLayout);
+        // Draw UI elements
+        font.draw(batch, "Money: " + player.getMoney(), 20, Gdx.graphics.getHeight() - 20);
+        int currentIncome = economyLogic.calculateCurrentIncome(hexLogic.getHexGrid());
+        font.draw(batch, "+" + currentIncome, 200, Gdx.graphics.getHeight() - 20);
         batch.end();
 
-        // Draw UI
-        stage.act(Gdx.graphics.getDeltaTime());
         stage.draw();
-    }
-
-    private void precomputeHexagonVertices() {
-        hexagonVertices = new Vector2[6];
-        for (int i = 0; i < 6; i++) {
-            double angle = 2 * Math.PI / 6 * i;
-            float x = hexSize * (float) Math.cos(angle);
-            float y = hexSize * (float) Math.sin(angle);
-            hexagonVertices[i] = new Vector2(x, y);
-        }
-    }
-
-    private List<Hex> generateHexGrid(int width, int height) {
-        List<Hex> grid = new ArrayList<>();
-        for (int q = -width; q <= width; q++) {
-            for (int r = -height; r <= height; r++) {
-                if (Math.abs(q + r) <= width) {
-                    grid.add(new Hex(q, r, Color.GRAY, 0,0));
-                }
-            }
-        }
-        return grid;
-    }
-
-    private Vector2 axialToPixel(int q, int r, float size) {
-        float x = size * (3f / 2 * q);
-        float y = size * ((float) Math.sqrt(3) * (r + q / 2f));
-        return new Vector2(x + Gdx.graphics.getWidth() / 2 + cameraOffset.x, y + Gdx.graphics.getHeight() / 2 + cameraOffset.y);
-    }
-
-    private void fillHexagon(int q, int r) {
-        Vector2 center = axialToPixel(q, r, hexSize * zoomFactor);
-        float[] vertices = new float[12];
-        for (int i = 0; i < 6; i++) {
-            vertices[i * 2] = hexagonVertices[i].x + center.x;
-            vertices[i * 2 + 1] = hexagonVertices[i].y + center.y;
-        }
-        shapeRenderer.triangle(vertices[0], vertices[1], vertices[2], vertices[3], vertices[4], vertices[5]);
-        shapeRenderer.triangle(vertices[0], vertices[1], vertices[4], vertices[5], vertices[6], vertices[7]);
-        shapeRenderer.triangle(vertices[0], vertices[1], vertices[6], vertices[7], vertices[8], vertices[9]);
-        shapeRenderer.triangle(vertices[0], vertices[1], vertices[8], vertices[9], vertices[10], vertices[11]);
-    }
-
-    private void drawHexagon(int q, int r) {
-        Vector2 center = axialToPixel(q, r, hexSize * zoomFactor);
-        for (int i = 0; i < 6; i++) {
-            Vector2 start = hexagonVertices[i].cpy().add(center);
-            Vector2 end = hexagonVertices[(i + 1) % 6].cpy().add(center);
-            shapeRenderer.line(start, end);
-        }
-    }
-
-    private Hex getHexAtPosition(Vector2 position) {
-        for (Hex hex : hexGrid) {
-            Vector2 hexPos = axialToPixel(hex.getQ(), hex.getR(), hexSize * zoomFactor);
-            if (position.dst(hexPos) < hexSize * zoomFactor) {
-                return hex;
-            }
-        }
-        return null;
-    }
-
-    private List<Hex> getReachableHexes(Unit unit, int marchDistance) {
-        List<Hex> reachableHexes = new ArrayList<>();
-        List<Hex> queue = new ArrayList<>();
-        List<Hex> visited = new ArrayList<>();
-        Hex startHex = findHex(unit.getQ(), unit.getR());
-        if (startHex == null) return reachableHexes;
-
-        Color unitColor = unit.getColor();
-        queue.add(startHex);
-        visited.add(startHex);
-
-        while (!queue.isEmpty()) {
-            Hex currentHex = queue.remove(0);
-            reachableHexes.add(currentHex);
-
-            for (int[] dir : directions) {
-                int newQ = currentHex.getQ() + dir[0];
-                int newR = currentHex.getR() + dir[1];
-                Hex neighbor = findHex(newQ, newR);
-
-                if (neighbor != null && !visited.contains(neighbor)) {
-                    int distance = axialDistance(startHex.getQ(), startHex.getR(), neighbor.getQ(), neighbor.getR());
-
-                    // Check if the neighbor is within marchDistance
-                    if (distance <= marchDistance) {
-                        // If the neighbor is the same color, add it to the queue
-                        if (neighbor.getColor().equals(unitColor)) {
-                            queue.add(neighbor);
-                            visited.add(neighbor);
-                        }
-                        // If the neighbor is a different color, allow movement only if it's exactly one hex away
-                        else if (distance == 1) {
-                            reachableHexes.add(neighbor); // Add to reachable hexes but don't explore further
-                            visited.add(neighbor);
-                        }
-                    }
-                }
-            }
-        }
-        return reachableHexes;
-    }
-
-    private Hex findHex(int q, int r) {
-        for (Hex hex : hexGrid) {
-            if (hex.getQ() == q && hex.getR() == r) {
-                return hex;
-            }
-        }
-        return null;
-    }
-
-    private boolean isWithinDistance(Hex start, Hex target, int maxDistance) {
-        int distance = axialDistance(start.getQ(), start.getR(), target.getQ(), target.getR());
-        return distance <= maxDistance;
-    }
-
-    private int axialDistance(int q1, int r1, int q2, int r2) {
-        int dq = q1 - q2;
-        int dr = r1 - r2;
-        return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
     }
 
     @Override
@@ -253,34 +148,62 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         return false;
     }
 
-    private List<Hex> reachableHexes = new ArrayList<>();
+    List<Hex> reachableHexes = hexLogic.getReachableHexes();
 
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         dragging = true;
         lastTouch.set(screenX, screenY);
         Vector2 touchPos = new Vector2(screenX, Gdx.graphics.getHeight() - screenY);
-        Hex touchedHex = getHexAtPosition(touchPos);
+        Hex touchedHex = hexLogic.getHexAtPosition(touchPos);
+
         if (touchedHex != null) {
             if (selectedUnit == null) {
+                // Select a unit if it hasn't moved
                 for (Unit unit : units) {
                     if (!unit.hasMoved() && unit.getQ() == touchedHex.getQ() && unit.getR() == touchedHex.getR()) {
                         selectedUnit = unit;
-                        reachableHexes = getReachableHexes(selectedUnit, selectedUnit.getMarchDistance());
+                        reachableHexes = hexLogic.getReachableHexes(selectedUnit, selectedUnit.getMarchDistance());
                         break;
                     }
                 }
             } else {
                 if (!selectedUnit.hasMoved() && reachableHexes.contains(touchedHex)) {
-                    selectedUnit.moveTo(touchedHex.getQ(), touchedHex.getR());
-                    // If the hex is not the same color as the unit, capture it
-                    if (!touchedHex.getColor().equals(selectedUnit.getColor())) {
+                    List<Unit> unitsInHex = unitLogic.getUnitsAtHex(touchedHex.getQ(), touchedHex.getR());
+                    boolean hasFriendly = false;
+                    for (Unit u : unitsInHex) {
+                        if (u.getColor().equals(selectedUnit.getColor())) {
+                            hasFriendly = true;
+                            break;
+                        }
+                    }
+
+                    if (hasFriendly) {
+                        // Merge with friendly units
+                        unitLogic.handleMerge(touchedHex, selectedUnit, units);
+                    } else {
+                        // Move the unit to the empty hex
+                        selectedUnit.setQ(touchedHex.getQ());
+                        selectedUnit.setR(touchedHex.getR());
+                        selectedUnit.setMoved(true);
+                        // Capture the hex
                         touchedHex.setColor(selectedUnit.getColor());
                     }
-                    selectedUnit.setMoved(true);
+
+                    // Deselect and clear highlights
                     selectedUnit = null;
-                    reachableHexes.clear(); // Clear highlights after moving
+                    reachableHexes.clear();
+                } else {
+                    // Deselect if tapping a non-reachable hex
+                    selectedUnit = null;
+                    reachableHexes.clear();
                 }
+            }
+        } else {
+            // Deselect if tapping outside any hex
+            if (selectedUnit != null) {
+                selectedUnit = null;
+                reachableHexes.clear();
             }
         }
         return true;
@@ -303,20 +226,10 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
             float dx = screenX - lastTouch.x;
             float dy = screenY - lastTouch.y;
             cameraOffset.add(dx, -dy);
-            clampCameraOffset(); // Clamp the camera offset
+            cameraLogic.clampCameraOffset(); // Clamp the camera offset
             lastTouch.set(screenX, screenY);
         }
         return true;
-    }
-
-    private void clampCameraOffset() {
-        float minX = -Gdx.graphics.getWidth() / 2;
-        float maxX = Gdx.graphics.getWidth() / 2;
-        float minY = -Gdx.graphics.getHeight() / 2;
-        float maxY = Gdx.graphics.getHeight() / 2;
-
-        cameraOffset.x = Math.max(minX, Math.min(maxX, cameraOffset.x));
-        cameraOffset.y = Math.max(minY, Math.min(maxY, cameraOffset.y));
     }
 
     @Override
@@ -332,27 +245,24 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         return true;
     }
 
-    private boolean isAdjacent(int q1, int r1, int q2, int r2) {
-        int[][] directions = { {1, 0}, {0, 1}, {-1, 1}, {-1, 0}, {0, -1}, {1, -1} };
-        for (int[] dir : directions) {
-            if (q1 + dir[0] == q2 && r1 + dir[1] == r2) return true;
-        }
-        return false;
-    }
-
     public void nextTurn() {
         for (Unit unit : units) {
             unit.setMoved(false);
         }
+        // Add current income to player's money
+        int currentIncome = economyLogic.calculateCurrentIncome(hexGrid);
+        player.setMoney(player.getMoney() + currentIncome);
     }
 
     @Override
     public void dispose() {
+        font.dispose();
         shapeRenderer.dispose();
         batch.dispose();
         for (Unit unit : units) {
-            unit.getUnitIcon().getTexture().dispose(); // Dispose of the unit's texture
+            unit.getUnitIcon().getTexture().dispose();
         }
         stage.dispose();
     }
+
 }
