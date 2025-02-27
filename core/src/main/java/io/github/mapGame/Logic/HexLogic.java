@@ -88,11 +88,7 @@ public class HexLogic {
         // Draw filled hexagons
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         for (Hex hex : hexGrid) {
-            if (reachableHexes.contains(hex)) {
-                shapeRenderer.setColor(new Color(1, 1, 0, 0.5f));
-            } else {
-                shapeRenderer.setColor(hex.getColor());
-            }
+            shapeRenderer.setColor(hex.getColor());
             fillHexagon(hex.getQ(), hex.getR());
         }
         shapeRenderer.end();

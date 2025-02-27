@@ -70,4 +70,16 @@ public class Unit {
     public void setMarchDistance(int marchDistance) {
         this.marchDistance = marchDistance;
     }
+
+    public void setUnitIcon(String iconPath) {
+        this.unitIcon = new Sprite(new Texture(iconPath));
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
+    }
+
+    public boolean isMoved() {
+        return moved;
+    }
 }

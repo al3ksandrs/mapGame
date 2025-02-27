@@ -8,12 +8,12 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
-import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 
@@ -65,14 +65,15 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         hexLogic.setCameraLogic(cameraLogic);
         batch = new SpriteBatch();
         font = new BitmapFont();
+        font.getData().setScale(3f);
         glyphLayout = new GlyphLayout();
-        hexGrid = mapLogic.generateHexGrid(4, 4);
+        hexGrid = mapLogic.generateHexGrid(4, 2);
         hexLogic.setHexGrid(hexGrid);
         units = new ArrayList<>();
         unitLogic.setUnits(units);
         player = new Player(0);
-        Unit initialUnit = new Unit(1, 1, Color.RED, 1, 2, "icons/infantry.png");
-        Unit initialUnit2 = new Unit(2, 2, Color.RED, 1, 2, "icons/infantry.png");
+        Unit initialUnit = new Unit(1, 1, Color.RED, 3, 2, "icons/infantry.png");
+        Unit initialUnit2 = new Unit(2, 2, Color.RED, 3, 2, "icons/infantry.png");
         units.add(initialUnit);
         units.add(initialUnit2);
 
@@ -81,6 +82,7 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
             Hex startingHex = hexLogic.findHex(unit.getQ(), unit.getR());
             if (startingHex != null) {
                 startingHex.setColor(unit.getColor());
+                startingHex.setTax(1);
             }
         }
         stage = new Stage();
@@ -89,21 +91,32 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         multiplexer.addProcessor(this);  // HexGridGame handles game input
         Gdx.input.setInputProcessor(multiplexer);
         hexLogic.precomputeHexagonVertices();
-        createNextTurnButton();
+        createBottomBar();
     }
 
-    private void createNextTurnButton() {
+    private void createBottomBar() {
         skin = new Skin(Gdx.files.internal("ui/uiskin.json"));
+
+        // Create a table for the bottom bar
+        Table bottomBar = new Table();
+        bottomBar.setFillParent(true);
+        bottomBar.bottom();
+
+        // Add the "Next Turn" button to the bottom bar
         TextButton nextTurnButton = new TextButton("Next Turn", skin);
-        nextTurnButton.setSize(150, 50);
-        nextTurnButton.setPosition(Gdx.graphics.getWidth() - 300, 100);
+        nextTurnButton.getLabel().setFontScale(3f);
         nextTurnButton.addListener(new ClickListener() {
             @Override
             public void clicked(com.badlogic.gdx.scenes.scene2d.InputEvent event, float x, float y) {
                 nextTurn();
             }
         });
-        stage.addActor(nextTurnButton);
+
+        // Add the button to the bottom bar
+        bottomBar.add(nextTurnButton).pad(10).width(300).height(100);
+
+        // Add the bottom bar to the stage
+        stage.addActor(bottomBar);
     }
 
     @Override
@@ -129,9 +142,9 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         batch.begin();
         unitLogic.drawUnits(batch, font, axialLogic, hexLogic.getHexSize(), cameraLogic, glyphLayout);
         // Draw UI elements
-        font.draw(batch, "Money: " + player.getMoney(), 20, Gdx.graphics.getHeight() - 20);
+        font.draw(batch, "Money: " + player.getMoney(), 40, Gdx.graphics.getHeight() - 40);
         int currentIncome = economyLogic.calculateCurrentIncome(hexLogic.getHexGrid());
-        font.draw(batch, "+" + currentIncome, 200, Gdx.graphics.getHeight() - 20);
+        font.draw(batch, "+" + currentIncome, 300, Gdx.graphics.getHeight() - 40);
         batch.end();
 
         stage.draw();
@@ -192,6 +205,7 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
                         selectedUnit.setMoved(true);
                         // Capture the hex
                         touchedHex.setColor(selectedUnit.getColor());
+                        touchedHex.setTax(1);
                     }
 
                     // Deselect and clear highlights
@@ -255,7 +269,13 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         }
         // Add current income to player's money
         int currentIncome = economyLogic.calculateCurrentIncome(hexLogic.getHexGrid());
+
+        Gdx.app.log("Economy", "Current Income: " + currentIncome);
+        Gdx.app.log("Economy", "Money before: " + player.getMoney());
+
         player.setMoney(player.getMoney() + currentIncome);
+
+        Gdx.app.log("Economy", "Money after: " + player.getMoney());
     }
 
     @Override
@@ -268,5 +288,4 @@ public class HexGridGame extends ApplicationAdapter implements InputProcessor {
         }
         stage.dispose();
     }
-
 }

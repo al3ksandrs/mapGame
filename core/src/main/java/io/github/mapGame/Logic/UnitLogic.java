@@ -81,6 +81,11 @@ public class UnitLogic {
                 maxMarch,
                 "icons/infantry.png"
             );
+            if (totalStrength >= 5){
+                mergedUnit.setUnitIcon("icons/infantry2.png");
+            } else {
+//                mergedUnit.setUnitIcon();
+            }
             mergedUnit.setMoved(true);
             units.add(mergedUnit);
         }
